@@ -48,7 +48,7 @@ export class JwtUtil {
     id: string;
     sessionId: string;
     hash: string;
-    role: string;
+    roles: string[];
   }): Promise<Token> {
     const tokenExpiresIn = this.configService.getOrThrow('auth.expires', {
       infer: true,
@@ -59,7 +59,7 @@ export class JwtUtil {
       await this.jwtService.signAsync(
         {
           id: data.id,
-          role: data.role,
+          roles: data.roles,
           sessionId: data.sessionId,
         },
         {
@@ -105,7 +105,7 @@ export class JwtUtil {
     );
   }
 
-  async createForgotPasswordToken(data: { id: string }): Promise<string> {
+  async createResetPasswordToken(data: { id: string }): Promise<string> {
     return this.jwtService.signAsync(
       {
         id: data.id,
@@ -128,20 +128,26 @@ export class JwtUtil {
           infer: true,
         }),
       });
-    } catch {
-      throw new UnauthorizedException(ErrorCode.TOKEN_INVALID);
+    } catch (err) {
+      if (err instanceof TokenExpiredError)
+        throw new UnauthorizedException(ErrorCode.TOKEN_EXPIRED);
+      else if (err instanceof JsonWebTokenError)
+        throw new UnauthorizedException(ErrorCode.TOKEN_INVALID);
     }
   }
 
-  verifyForgotPasswordToken(token: string) {
+  verifyResetPasswordToken(token: string) {
     try {
       return this.jwtService.verify(token, {
         secret: this.configService.getOrThrow('auth.forgotSecret', {
           infer: true,
         }),
       });
-    } catch {
-      throw new UnauthorizedException(ErrorCode.TOKEN_INVALID);
+    } catch (err) {
+      if (err instanceof TokenExpiredError)
+        throw new UnauthorizedException(ErrorCode.TOKEN_EXPIRED);
+      else if (err instanceof JsonWebTokenError)
+        throw new UnauthorizedException(ErrorCode.TOKEN_INVALID);
     }
   }
 }

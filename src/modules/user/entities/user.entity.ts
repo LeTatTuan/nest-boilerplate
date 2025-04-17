@@ -1,6 +1,8 @@
+import { GENDER } from '@common/constants/entity.enum';
 import { Uuid } from '@common/types/common.type';
 import { hashPassword as hashPass } from '@common/utils/password.util';
 import { AbstractEntity } from '@database/entities/abstract.entity';
+import { PermissionEntity } from '@modules/permission/entities/permission.entity';
 import { RoleEntity } from '@modules/role/entities/role.entity';
 import { SessionEntity } from '@modules/session/entities/session.entity';
 import {
@@ -9,9 +11,9 @@ import {
   Column,
   Entity,
   Index,
-  JoinColumn,
+  JoinTable,
+  ManyToMany,
   OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -32,27 +34,20 @@ export class UserEntity extends AbstractEntity {
   @Column()
   password!: string;
 
-  @Column({
-    length: 50,
-    nullable: true,
-  })
-  @Index('UQ_user_info_username', {
-    where: '"deleted_at" IS NULL',
-    unique: true,
-  })
-  username!: string;
+  @Column({ name: 'phone_number' })
+  phoneNumber?: string;
 
-  @Column({
-    length: 50,
-    nullable: true,
-  })
+  @Column({ length: 50, nullable: true })
   name: string;
 
-  @Column({
-    length: 255,
-    nullable: true,
-  })
+  @Column({ length: 255, nullable: true })
   avatar: string;
+
+  @Column('date', { name: 'date_of_birth', nullable: true })
+  dateOfBirth?: Date;
+
+  @Column('int', { default: GENDER.MALE })
+  gender: GENDER;
 
   @Column({ name: 'is_active', type: 'boolean', default: false })
   isActive?: boolean;
@@ -60,19 +55,24 @@ export class UserEntity extends AbstractEntity {
   @Column({ name: 'is_confirmed', type: 'boolean', default: false })
   isConfirmed?: boolean;
 
-  @Column({ name: 'role_id', type: 'uuid' })
-  roleId: Uuid;
-
-  @OneToOne(() => RoleEntity)
-  @JoinColumn({
-    name: 'role_id',
-    referencedColumnName: 'id',
-    foreignKeyConstraintName: 'FK_user_role',
+  @ManyToMany(() => RoleEntity, (role) => role.users)
+  @JoinTable({
+    name: 'user_role',
+    joinColumn: {
+      name: 'user_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'role_id',
+      referencedColumnName: 'id',
+    },
   })
-  role: RoleEntity;
+  roles: Array<RoleEntity>;
 
   @OneToMany(() => SessionEntity, (session) => session.user)
   sessions?: SessionEntity[];
+
+  permissions?: Partial<PermissionEntity>[];
 
   @BeforeInsert()
   @BeforeUpdate()

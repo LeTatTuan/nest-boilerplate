@@ -3,7 +3,7 @@ import { Uuid } from '@common/types/common.type';
 
 export interface ICurrentUser {
   id: Uuid;
-  role: ROLE;
+  roles: ROLE[];
   sessionId?: Uuid;
   permissions: string[];
 }

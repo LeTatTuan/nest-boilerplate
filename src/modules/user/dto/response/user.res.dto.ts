@@ -1,9 +1,11 @@
 import { ROLE } from '@common/constants/entity.enum';
 import {
+  DateFieldOptional,
   StringField,
   StringFieldOptional,
 } from '@common/decorators/field.decorators';
 import { BaseResDto } from '@common/dto/base.res.dto';
+import { RoleEntity } from '@modules/role/entities/role.entity';
 import { Exclude, Expose, Transform } from 'class-transformer';
 
 @Exclude()
@@ -17,11 +19,6 @@ export class UserResDto extends BaseResDto {
   password: string;
 
   @StringField()
-  @Transform(({ obj }) => (obj.role ? obj.role.name : ROLE.USER))
-  @Expose()
-  role: ROLE;
-
-  @StringField()
   @Expose()
   name: string;
 
@@ -29,7 +26,21 @@ export class UserResDto extends BaseResDto {
   @Expose()
   avatar: string;
 
+  @DateFieldOptional()
+  @Expose()
+  date_of_birth: Date;
+
   @StringField()
   @Expose()
-  username: string;
+  @Transform(({ value }) => (value === 0 ? 'MALE' : 'FEMALE'))
+  gender: string;
+
+  @StringField({ isArray: true, each: true })
+  @Transform(({ obj }) => {
+    return obj.roles && Array.isArray(obj.roles)
+      ? obj.roles.map((item: RoleEntity) => item.name)
+      : [];
+  })
+  @Expose()
+  roles: ROLE[];
 }

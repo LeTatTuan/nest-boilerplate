@@ -1,28 +1,33 @@
 import { GOOGLE_URL } from '@common/constants/app.constant';
+import { CacheKey } from '@common/constants/cache.constant';
 import { ROLE } from '@common/constants/entity.enum';
 import { ErrorCode } from '@common/constants/error-code';
-import { TOKEN_TYPE } from '@common/constants/token-type.enum';
 import { CommonFunction } from '@common/helpers/common.function';
 import { Uuid } from '@common/types/common.type';
 import { JwtUtil } from '@common/utils/jwt.util';
 import { Optional } from '@common/utils/optional';
 import { hashPassword, verifyPassword } from '@common/utils/password.util';
 import { MailService } from '@libs/mail/mail.service';
-import { AuthResetPasswordDto } from '@modules/auth/dto/request/auth-reset-password.dto';
-import { EmailDto } from '@modules/auth/dto/request/email.dto';
+import { CacheTTL } from '@libs/redis/utils/cache-ttl.utils';
+import { CreateCacheKey } from '@libs/redis/utils/create-cache-key.utils';
+import { EmailReqDto } from '@modules/auth/dto/request/email.req.dto';
 import { LoginWithGoogleReqDto } from '@modules/auth/dto/request/login-with-google.req.dto';
-import { JwtPayloadType } from '@modules/auth/types/jwt-payload.type';
+import { ResetPasswordReqDto } from '@modules/auth/dto/request/reset-password.req.dto';
+import { VerifyPinCodeReqDto } from '@modules/auth/dto/request/verify-pin-code.req.dto';
 import { SessionEntity } from '@modules/session/entities/session.entity';
 import { SessionService } from '@modules/session/session.service';
 import { UserEntity } from '@modules/user/entities/user.entity';
 import { UserService } from '@modules/user/user.service';
 import { HttpService } from '@nestjs/axios';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { Cache } from 'cache-manager';
 import { plainToInstance } from 'class-transformer';
 import { firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -42,6 +47,8 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly sessionService: SessionService,
     private readonly httpService: HttpService,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheService: Cache,
   ) {}
 
   async signIn(
@@ -55,7 +62,9 @@ export class AuthService {
       .throwIfNullable(new NotFoundException(ErrorCode.ACCOUNT_NOT_REGISTER))
       .get() as UserEntity;
 
-    if (forAdmin && user.role.name !== ROLE.ADMIN) {
+    const roles = user.roles.map((role) => role.name);
+
+    if (forAdmin && !roles.includes(ROLE.ADMIN)) {
       throw new UnauthorizedException(ErrorCode.ACCESS_DENIED);
     }
 
@@ -103,9 +112,10 @@ export class AuthService {
 
   async register(dto: RegisterReqDto): Promise<RegisterResDto> {
     const { email, password, name } = dto;
-    Optional.of(
-      await this.userService.findOneByCondition({ email }),
-    ).throwIfPresent(new BadRequestException(ErrorCode.EMAIL_EXISTS));
+    const emailIsExist = await this.userService.isExistUserByEmail(email);
+    if (emailIsExist) {
+      throw new BadRequestException(ErrorCode.EMAIL_EXISTS);
+    }
 
     const user = await this.userService.create({ email, password, name });
 
@@ -140,45 +150,33 @@ export class AuthService {
     const user = await this.userService.findOneByCondition({
       id: session.userId,
     });
-    if (forAdmin && user.role.name !== ROLE.ADMIN) {
+    const roles = user.roles.map((role) => role.name);
+    if (forAdmin && !roles.includes(ROLE.ADMIN)) {
       throw new UnauthorizedException(ErrorCode.ACCESS_DENIED);
     }
 
-    const newHash = CommonFunction.generateHashInToken();
-    await this.sessionService.update(session.id, { hash: newHash });
-
-    return this.jwtUtil.createToken({
-      id: user.id,
-      sessionId: session.id,
-      hash: newHash,
-      role: user.role.name,
-    });
+    return this.createToken(user, sessionId);
   }
 
-  async verifyEmailToken(token: string, type: TOKEN_TYPE) {
-    let payload: Omit<JwtPayloadType, 'role' | 'sessionId'>;
-    if (type === TOKEN_TYPE.ACTIVATION) {
-      payload = this.jwtUtil.verifyActivateAccountToken(token);
-      const user = await this.userService.updateUser(payload.id as Uuid, {
+  async verifyActivationToken(token: string) {
+    const { id } = this.jwtUtil.verifyActivateAccountToken(token);
+
+    Optional.of(
+      await this.userService.updateUser(id as Uuid, {
         isConfirmed: true,
         isActive: true,
-      });
-
-      if (!user) {
-        throw new BadRequestException(ErrorCode.ACCOUNT_NOT_REGISTER);
-      }
-    } else if (type === TOKEN_TYPE.FORGOT_PASSWORD) {
-      payload = this.jwtUtil.verifyForgotPasswordToken(token);
-    }
+      }),
+    ).throwIfNullable(new BadRequestException(ErrorCode.ACCOUNT_NOT_REGISTER));
   }
 
-  async resendEmailActivation(dto: EmailDto) {
-    const user = await this.userService.findOneByCondition({
-      email: dto.email,
-    });
-    if (!user) {
-      throw new NotFoundException(ErrorCode.ACCOUNT_NOT_REGISTER);
-    }
+  async resendEmailActivation(dto: EmailReqDto) {
+    const user = Optional.of(
+      await this.userService.findOneByCondition({
+        email: dto.email,
+      }),
+    )
+      .throwIfNullable(new NotFoundException(ErrorCode.ACCOUNT_NOT_REGISTER))
+      .get() as UserEntity;
 
     if (user.isActive) {
       throw new BadRequestException(ErrorCode.ACCOUNT_ALREADY_ACTIVATED);
@@ -189,28 +187,62 @@ export class AuthService {
     await this.mailService.sendEmailVerification(user.email, token);
   }
 
-  async forgotPassword(dto: EmailDto) {
-    const user = await this.userService.findOneByCondition({
-      email: dto.email,
-    });
-    if (!user) {
-      throw new NotFoundException(ErrorCode.USER_NOT_FOUND);
-    }
+  async forgotPassword(dto: EmailReqDto) {
+    const user = Optional.of(
+      await this.userService.findOneByCondition({
+        email: dto.email,
+      }),
+    )
+      .throwIfNullable(new NotFoundException(ErrorCode.USER_NOT_FOUND))
+      .get() as UserEntity;
 
-    const token = await this.jwtUtil.createForgotPasswordToken({ id: user.id });
+    const pinCode = CommonFunction.generatePinCode(6);
+    const [token] = await Promise.all([
+      this.jwtUtil.createResetPasswordToken({ id: user.id }),
+      this.cacheService.set(
+        CreateCacheKey(CacheKey.PASSWORD_RESET_PIN_CODE, user.id),
+        pinCode,
+        CacheTTL.minutes(30),
+      ),
+    ]);
 
     await this.mailService.forgotPassword(dto.email, token);
+
+    return { token };
   }
 
-  async resetPassword(dto: AuthResetPasswordDto) {
-    const payload = this.jwtUtil.verifyForgotPasswordToken(dto.token);
+  async verifyResetPasswordToken(token: string) {
+    this.jwtUtil.verifyResetPasswordToken(token);
+  }
+
+  async verifyPinCodeResetPassword(dto: VerifyPinCodeReqDto) {
+    const { token, pinCode } = dto;
+    const { id } = this.jwtUtil.verifyResetPasswordToken(token);
+
+    const pinCodeCached = await this.cacheService.get<string>(
+      CreateCacheKey(CacheKey.PASSWORD_RESET_PIN_CODE, id),
+    );
+
+    if (!pinCodeCached || pinCodeCached !== pinCode) {
+      throw new BadRequestException(ErrorCode.CODE_INCORRECT);
+    }
+  }
+
+  async resetPassword(dto: ResetPasswordReqDto) {
+    const { id } = this.jwtUtil.verifyResetPasswordToken(dto.token);
+
     Optional.of(
-      await this.userService.findById(payload.id as Uuid),
+      await this.userService.findOneUserAndGetRolesById(id as Uuid),
     ).throwIfNullable(new BadRequestException(ErrorCode.TOKEN_INVALID));
 
-    await this.userService.updateUser(payload.id as Uuid, {
-      password: await hashPassword(dto.password),
-    });
+    await Promise.allSettled([
+      this.userService.updateUser(id as Uuid, {
+        password: await hashPassword(dto.password),
+      }),
+      this.cacheService.del(
+        CreateCacheKey(CacheKey.PASSWORD_RESET_PIN_CODE, id),
+      ),
+    ]);
   }
 
   async revokeTokens(user: ICurrentUser) {
@@ -226,15 +258,20 @@ export class AuthService {
     });
   }
 
-  async createToken(user: UserEntity) {
-    const hash = CommonFunction.generateHashInToken();
-    const session = await this.sessionService.create({ hash, userId: user.id });
+  async createToken(user: UserEntity, sessionId?: Uuid) {
+    const newHash = CommonFunction.generateHashInToken();
+    const session = sessionId
+      ? await this.sessionService.update(sessionId, { hash: newHash })
+      : await this.sessionService.create({
+          hash: newHash,
+          userId: user.id,
+        });
 
     const token = await this.jwtUtil.createToken({
       id: user.id,
       sessionId: session.id,
-      hash,
-      role: user.role.name,
+      hash: newHash,
+      roles: user.roles.map((role) => role.name),
     });
 
     return plainToInstance(LoginResDto, {

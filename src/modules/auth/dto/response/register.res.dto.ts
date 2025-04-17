@@ -4,6 +4,6 @@ import { Exclude, Expose } from 'class-transformer';
 @Exclude()
 export class RegisterResDto {
   @Expose()
-  @StringField()
+  @StringField({ name: 'user_id' })
   userId!: string;
 }

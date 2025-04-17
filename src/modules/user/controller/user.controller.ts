@@ -4,8 +4,8 @@ import { ApiAuth } from '@common/decorators/http.decorators';
 import { ValidateUuid } from '@common/decorators/validators/uuid-validator';
 import { PermissionGuard } from '@common/guards/permission.guard';
 import { Uuid } from '@common/types/common.type';
-import { ChangePasswordReqDto } from '@modules/user/dto/request/change-password.req';
-import { UpdateUserInfoDto } from '@modules/user/dto/request/update-user-info.req.dto';
+import { ChangePasswordReqDto } from '@modules/user/dto/request/change-password.req.dto';
+import { UpdateUserReqDto } from '@modules/user/dto/request/update-user.req.dto';
 import {
   Body,
   Controller,
@@ -38,7 +38,7 @@ export class UserController {
   })
   @Get('me')
   async getCurrentUser(@CurrentUser('id') userId: Uuid) {
-    return this.userService.findById(userId);
+    return this.userService.findOneUserAndGetRolesById(userId);
   }
 
   @ApiAuth({
@@ -53,7 +53,7 @@ export class UserController {
   })
   @Get(':userId')
   async getInfoDetailUser(@Param('userId', ValidateUuid) userId: Uuid) {
-    return this.userService.findById(userId);
+    return this.userService.findOneUserAndGetRolesById(userId);
   }
 
   @Patch('profile/me')
@@ -64,10 +64,7 @@ export class UserController {
       { resource: ResourceList.USER, actions: [ActionList.UPDATE] },
     ],
   })
-  updateMyInfo(
-    @CurrentUser('id') userId: Uuid,
-    @Body() dto: UpdateUserInfoDto,
-  ) {
+  updateMyInfo(@CurrentUser('id') userId: Uuid, @Body() dto: UpdateUserReqDto) {
     return this.userService.updateUser(userId, dto);
   }
 

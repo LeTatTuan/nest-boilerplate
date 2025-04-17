@@ -1,6 +1,6 @@
 import { TokenField } from '@common/decorators/field.decorators';
 
-export class AuthConfirmEmailDto {
+export class ConfirmEmailReqDto {
   @TokenField()
   token: string;
 }

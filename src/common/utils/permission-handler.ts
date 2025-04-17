@@ -7,7 +7,7 @@ export class PermissionHandler implements PermissionHandlerInterface {
 
   handle(user: ICurrentUser): boolean {
     const { resource, actions } = this.permission;
-    if (user && user.role && user.permissions) {
+    if (user && user.roles && user.permissions) {
       const setPermission = new Set(user.permissions);
       return actions.every((action) =>
         setPermission.has(`${resource}:${action}`),

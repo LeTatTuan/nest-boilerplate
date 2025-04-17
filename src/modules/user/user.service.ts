@@ -13,7 +13,7 @@ import { CreateCacheKey } from '@libs/redis/utils/create-cache-key.utils';
 import { GetRoleEvent } from '@modules/role/events/get-role.event';
 import { SessionService } from '@modules/session/session.service';
 import { AdminQueryUserReqDto } from '@modules/user/dto/request/admin-query-user.req.dto';
-import { ChangePasswordReqDto } from '@modules/user/dto/request/change-password.req';
+import { ChangePasswordReqDto } from '@modules/user/dto/request/change-password.req.dto';
 import { CreateUserDto } from '@modules/user/dto/request/create-user.req.dto';
 import { UserResDto } from '@modules/user/dto/response/user.res.dto';
 import { UserEntity } from '@modules/user/entities/user.entity';
@@ -29,7 +29,7 @@ import {
 import { OnEvent } from '@nestjs/event-emitter';
 import { Cache } from 'cache-manager';
 import { plainToInstance } from 'class-transformer';
-import { FindOptionsWhere } from 'typeorm';
+import { FindOneOptions, FindOptionsWhere } from 'typeorm';
 
 @Injectable()
 export class UserService {
@@ -45,7 +45,6 @@ export class UserService {
     const { email, password, name, avatar } = dto;
     const newUser = new UserEntity({
       email,
-      username: email.split('@')[0],
       password,
       name,
       avatar,
@@ -58,27 +57,25 @@ export class UserService {
     );
 
     if (role) {
-      newUser.roleId = role.id;
-      newUser.role = role;
+      newUser.roles = [role];
     }
 
     return this.userRepository.save(newUser);
   }
 
-  async findById(id: Uuid) {
+  async findOneUserAndGetRolesById(id: Uuid) {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['role'],
+      relations: ['roles'],
     });
-    console.log(user);
     return plainToInstance(UserResDto, user);
   }
 
-  async findByUserId(id: Uuid, withDeleted: boolean = false) {
+  async findUserById(id: Uuid, options?: FindOneOptions<UserEntity>) {
     return Optional.of(
       await this.userRepository.findOne({
         where: { id },
-        withDeleted,
+        ...options,
       }),
     )
       .throwIfNotPresent(new NotFoundException(ErrorCode.USER_NOT_FOUND))
@@ -86,20 +83,20 @@ export class UserService {
   }
 
   async updateUser(userId: Uuid, dto: Partial<UserEntity>) {
-    await this.findByUserId(userId);
+    const user = await this.findOneUserAndGetRolesById(userId);
     await this.userRepository.update({ id: userId }, dto);
-    return this.userRepository.findOne({ where: { id: userId } });
+    return Object.assign(user, { ...dto }) as UserResDto;
   }
 
   async findOneByCondition(condition: FindOptionsWhere<UserEntity>) {
     return this.userRepository.findOne({
       where: condition,
-      relations: { role: true },
+      relations: { roles: true },
     });
   }
 
   @OnEvent(`${USER_SCOPE}.${USER_EVENT.GET_USER_PERMISSION_AND_CACHE}`)
-  async findUserByIdAndCache(userId: Uuid) {
+  async getPermissionsOfUser(userId: Uuid) {
     let user: UserEntity = await this.cacheService.get(
       CreateCacheKey(CacheKey.USER_PERMISSION, userId),
     );
@@ -107,15 +104,12 @@ export class UserService {
     if (user) {
       return user;
     } else {
-      user = await this.userRepository.findOneOrFail({
-        where: { id: userId },
-        relations: { role: { permissions: true } },
-      });
+      user = await this.userRepository.getPermissionsOfUser(userId);
 
       await this.cacheService.set(
         CreateCacheKey(CacheKey.USER_PERMISSION, userId),
         user,
-        CacheTTL.days(1),
+        CacheTTL.minutes(30),
       );
 
       return user;
@@ -123,7 +117,7 @@ export class UserService {
   }
 
   async changePassword(dto: ChangePasswordReqDto, userId: Uuid) {
-    const user = await this.findByUserId(userId);
+    const user = await this.findUserById(userId);
     if ((await verifyPassword(dto.old_password, user.password)) === false) {
       throw new BadRequestException(ErrorCode.OLD_PASSWORD_INCORRECT);
     }
@@ -139,7 +133,7 @@ export class UserService {
     if (isExistRequest) {
       throw new BadRequestException(ErrorCode.REQUEST_DELETE_ACCOUNT_INVALID);
     }
-    const user = await this.findByUserId(userId);
+    const user = await this.findUserById(userId);
     const code = CommonFunction.generatePinCode(6);
     await this.cacheService.set(
       CreateCacheKey(CacheKey.REQUEST_DELETE, userId),
@@ -156,7 +150,7 @@ export class UserService {
     if (code !== codeInRedis || codeInRedis === null) {
       throw new BadRequestException(ErrorCode.CODE_INCORRECT);
     }
-    const user = await this.findByUserId(userId);
+    const user = await this.findUserById(userId);
     user.deletedAt = new Date();
     await this.userRepository.save(user);
 
@@ -175,14 +169,14 @@ export class UserService {
   }
 
   async deleteUser(userId: Uuid) {
-    const user = await this.findByUserId(userId);
+    const user = await this.findUserById(userId);
     if (user.deletedAt === null) {
       await this.userRepository.softDelete({ id: userId });
     }
   }
 
   async restoreUser(userId: Uuid) {
-    const user = await this.findByUserId(userId, true);
+    const user = await this.findUserById(userId, { withDeleted: true });
     if (user.deletedAt !== null) {
       user.deletedAt = null;
       await this.userRepository.save(user);
@@ -196,5 +190,38 @@ export class UserService {
     });
 
     return user > 0;
+  }
+
+  async assignRoleForUser(roleId: Uuid, userId: Uuid) {
+    const [role, user] = await Promise.all([
+      this.eventService.emitAsync(new GetRoleEvent({ id: roleId })),
+      this.findUserById(userId, { relations: { roles: true } }),
+    ]);
+
+    const alreadyHasRole = user?.roles?.some((item) => item.id === role.id);
+
+    if (!alreadyHasRole) {
+      user.roles.push(role);
+      await this.userRepository.save(user);
+    }
+
+    return plainToInstance(UserResDto, user, { excludeExtraneousValues: true });
+  }
+
+  async unassignRoleFromUser(roleId: Uuid, userId: Uuid) {
+    const [role, user] = await Promise.all([
+      this.eventService.emitAsync(new GetRoleEvent({ id: roleId })),
+      this.findUserById(userId, { relations: { roles: true } }),
+    ]);
+
+    const roleIndex = user.roles?.findIndex((item) => item.id === role.id);
+    if (roleIndex) {
+      user.roles.splice(roleIndex, 1);
+      await this.userRepository.save(user);
+    }
+
+    return plainToInstance(UserResDto, user, {
+      excludeExtraneousValues: true,
+    });
   }
 }

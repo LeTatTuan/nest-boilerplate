@@ -37,7 +37,7 @@ export class PermissionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user: ICurrentUser = request.user;
 
-    if (user.role === ROLE.ADMIN) return true;
+    if (user.roles?.includes(ROLE.ADMIN)) return true;
 
     const permissionHandlers =
       this.reflector.get<PermissionHandlerInterface[]>(
@@ -49,9 +49,7 @@ export class PermissionGuard implements CanActivate {
       new GetUserPermissionEvent(user.id),
     )) as UserEntity;
 
-    user.permissions = preparePermissionPayload(
-      userPermission.role.permissions,
-    );
+    user.permissions = preparePermissionPayload(userPermission.permissions);
     const permitted = permissionHandlers.every((handler) =>
       handler.handle(user),
     );

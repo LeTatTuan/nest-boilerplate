@@ -1,10 +1,7 @@
-import { ROLE } from '@common/constants/entity.enum';
-
 export type JwtPayloadType = {
   id: string;
-  role: ROLE;
+  roles: string[];
   sessionId: string;
-  permissions: string[];
-  iat: number;
-  exp: number;
+  iat?: number;
+  exp?: number;
 };

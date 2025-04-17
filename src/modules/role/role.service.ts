@@ -12,7 +12,6 @@ import { UpdateRoleDto } from '@modules/role/dto/request/update-role.dto';
 import { RoleResDto } from '@modules/role/dto/response/role.res.dto';
 import { RoleEntity } from '@modules/role/entities/role.entity';
 import { RoleRepository } from '@modules/role/repositories/role.repository';
-import { UserResDto } from '@modules/user/dto/response/user.res.dto';
 import { UserService } from '@modules/user/user.service';
 import {
   BadRequestException,
@@ -57,11 +56,14 @@ export class RoleService {
   }
 
   @OnEvent(`${ResourceList.ROLE}.${ActionList.READ}`)
-  async findOneRole(filter: FindOptionsWhere<RoleEntity>) {
+  async findOneRole(
+    filter: FindOptionsWhere<RoleEntity>,
+    eager: boolean = true,
+  ) {
     return Optional.of(
       await this.repository.findOne({
         where: filter,
-        relations: { permissions: true },
+        relations: eager ? { permissions: true } : undefined,
       }),
     )
       .throwIfNullable(new NotFoundException(ErrorCode.ROLE_NOT_FOUND))
@@ -77,7 +79,7 @@ export class RoleService {
     return this.repository.findOneBy(condition);
   }
 
-  async getRoleAndUserAssigned(roleId: Uuid, filterOptions: PageOptionsDto) {
+  async getListUserByRole(roleId: Uuid, filterOptions: PageOptionsDto) {
     return this.userService.getListUserByRole(roleId, filterOptions);
   }
 
@@ -219,24 +221,6 @@ export class RoleService {
     }
 
     return plainToInstance(RoleResDto, role);
-  }
-
-  async assignRoleForUser(roleId: Uuid, userId: Uuid) {
-    const [role, user] = await Promise.all([
-      this.findOneRole({ id: roleId }),
-      this.userService.findByUserId(userId),
-    ]);
-
-    if (user.roleId !== roleId) {
-      await this.userService.updateUser(userId, {
-        roleId: roleId,
-      });
-      user.roleId = roleId;
-    }
-
-    if (!user.role) user.role = role;
-
-    return plainToInstance(UserResDto, user, { excludeExtraneousValues: true });
   }
 
   checkPermissionsExistInRole(

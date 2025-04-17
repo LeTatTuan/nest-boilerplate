@@ -9,7 +9,6 @@ import { CreateRoleDto } from '@modules/role/dto/request/create-role.dto';
 import { RoleFilterDto } from '@modules/role/dto/request/role-filter.dto';
 import { UpdateRoleDto } from '@modules/role/dto/request/update-role.dto';
 import { RoleResDto } from '@modules/role/dto/response/role.res.dto';
-import { UserResDto } from '@modules/user/dto/response/user.res.dto';
 import {
   Body,
   Controller,
@@ -55,7 +54,7 @@ export class RoleController {
       { resource: ResourceList.ROLE, actions: [ActionList.READ_ALL] },
     ],
   })
-  @Get('')
+  @Get()
   getAllRole(@Query() query: RoleFilterDto) {
     return this.roleService.findAllRole(query);
   }
@@ -74,24 +73,6 @@ export class RoleController {
   async getRoleAndPermission(@Param('roleId', ValidateUuid) roleId: Uuid) {
     const role = await this.roleService.findOneRole({ id: roleId });
     return plainToInstance(RoleResDto, role);
-  }
-
-  @ApiAuth({
-    summary: 'Get list user assigned by role id',
-    type: RoleResDto,
-    permissions: [{ resource: ResourceList.ROLE, actions: [ActionList.READ] }],
-  })
-  @ApiParam({
-    name: 'roleId',
-    description: 'The UUID of the role',
-    type: 'string',
-  })
-  @Get(':roleId/users-assigned')
-  getRoleAndUserAssigned(
-    @Param('roleId', ValidateUuid) roleId: Uuid,
-    @Query() query: PageOptionsDto,
-  ) {
-    return this.roleService.getRoleAndUserAssigned(roleId, query);
   }
 
   @ApiAuth({
@@ -118,29 +99,21 @@ export class RoleController {
   }
 
   @ApiAuth({
-    summary: 'Assign role for user',
-    type: UserResDto,
-    permissions: [
-      { resource: ResourceList.ROLE, actions: [ActionList.READ] },
-      { resource: ResourceList.USER, actions: [ActionList.UPDATE_ANY] },
-    ],
+    summary: 'Get list user assigned by role id',
+    type: RoleResDto,
+    permissions: [{ resource: ResourceList.ROLE, actions: [ActionList.READ] }],
   })
   @ApiParam({
     name: 'roleId',
     description: 'The UUID of the role',
     type: 'string',
   })
-  @ApiParam({
-    name: 'userId',
-    description: 'The UUID of the user',
-    type: 'string',
-  })
-  @Post(':roleId/users/:userId/assign')
-  assignRoleForUser(
+  @Get('/:roleId/users')
+  getListUserByRole(
     @Param('roleId', ValidateUuid) roleId: Uuid,
-    @Param('userId', ValidateUuid) userId: Uuid,
+    @Query() query: PageOptionsDto,
   ) {
-    return this.roleService.assignRoleForUser(roleId, userId);
+    return this.roleService.getListUserByRole(roleId, query);
   }
 
   @ApiAuth({

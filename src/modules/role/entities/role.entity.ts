@@ -1,6 +1,7 @@
 import { Uuid } from '@common/types/common.type';
 import { AbstractEntity } from '@database/entities/abstract.entity';
 import { PermissionEntity } from '@modules/permission/entities/permission.entity';
+import { UserEntity } from '@modules/user/entities/user.entity';
 import {
   Column,
   Entity,
@@ -40,4 +41,7 @@ export class RoleEntity extends AbstractEntity {
     },
   })
   permissions: Array<PermissionEntity>;
+
+  @ManyToMany(() => UserEntity, (user) => user.roles)
+  users: Array<UserEntity>;
 }

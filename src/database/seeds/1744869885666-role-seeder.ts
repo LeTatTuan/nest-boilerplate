@@ -8,7 +8,7 @@ import { RoleEntity } from '@modules/role/entities/role.entity';
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 
-export class RoleSeeder1742113420242 implements Seeder {
+export class RoleSeeder1744869885666 implements Seeder {
   track = false;
 
   public async run(

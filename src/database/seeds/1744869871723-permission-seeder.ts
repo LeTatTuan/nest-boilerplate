@@ -4,7 +4,7 @@ import { createPermissions } from '@modules/permission/helpers';
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 
-export class PermissionSeeder1742113309591 implements Seeder {
+export class PermissionSeeder1744869871723 implements Seeder {
   track = false;
 
   public async run(

@@ -36,6 +36,11 @@ export const SYSTEM_USER_ID = 'system';
 export const SUCCESS = 'success';
 export const FAILURE = 'failure';
 
+export const PASSWORD_FORMAT =
+  /^(?=.*[!@#$%^&*(),.?":{}|<>])[a-zA-Z0-9!@#$%^&*(),.?":{}|<>]*$/;
+export const PHONE_NUMBER_FORMAT = /^\+?[0-9]\d{1,14}$/;
+export const PIN_CODE_FORMAT = /^\d{6}$/;
+
 export const GOOGLE_URL =
   'https://www.googleapis.com/oauth2/v1/userinfo?access_token=';
 

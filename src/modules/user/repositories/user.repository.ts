@@ -18,20 +18,32 @@ export class UserRepository extends Repository<UserEntity> {
 
   async getListUser(filterOptions: AdminQueryUserReqDto) {
     const queryBuilder = this.createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'role')
+      .where((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('userSub.id')
+          .from('user', 'userSub')
+          .innerJoin('userSub.roles', 'roleSub')
+          .where('roleSub.name = :adminRole')
+          .getQuery();
+
+        return `user.id NOT IN ${subQuery}`;
+      })
+      .setParameter('adminRole', ROLE.ADMIN)
+      .withDeleted()
       .select([
         'user.id',
         'user.email',
-        'user.roleId',
-        'user.username',
+        'user.phone_number',
+        'user.date_of_birth',
         'user.name',
         'user.avatar',
+        'user.gender',
         'user.createdAt',
         'user.updatedAt',
         'user.deletedAt',
-      ])
-      .leftJoinAndSelect('user.role', 'role')
-      .andWhere('role.name != :roleName', { roleName: ROLE.ADMIN })
-      .withDeleted();
+      ]);
 
     if (filterOptions.role && filterOptions.role.length > 0) {
       queryBuilder.andWhere(
@@ -46,45 +58,49 @@ export class UserRepository extends Repository<UserEntity> {
     }
 
     if (filterOptions.keywords) {
-      queryBuilder.andWhere('user.email ILIKE :email', {
-        email: `%${filterOptions.keywords}%`,
-      });
+      queryBuilder.andWhere(
+        new Brackets((qb) => {
+          for (const field of ['user.email', 'user.name']) {
+            qb.orWhere(`${field} ILIKE :keywords`, {
+              keywords: `%${filterOptions.keywords}%`,
+            });
+          }
+        }),
+      );
     }
     if (filterOptions.onlyDeleted) {
       queryBuilder.andWhere('user.deletedAt IS NOT NULL');
     }
     queryBuilder
+      .orderBy('user.createdAt', filterOptions.order)
       .take(filterOptions.limit)
       .skip(
         filterOptions.page ? (filterOptions.page - 1) * filterOptions.limit : 0,
-      )
-      .orderBy('user.createdAt', filterOptions.order);
+      );
 
     const [users, totalRecords] = await queryBuilder.getManyAndCount();
 
     const meta = new OffsetPaginationDto(totalRecords, filterOptions);
-    return new OffsetPaginatedDto(
-      plainToInstance(UserResDto, users, { excludeExtraneousValues: true }),
-      meta,
-    );
+    return new OffsetPaginatedDto(users, meta);
   }
 
   async getRoleAndUserAssigned(roleId: Uuid, filterOptions: PageOptionsDto) {
-    const searchCriteria = ['user.email', 'userInfo.username', 'userInfo.name'];
+    const searchCriteria = ['user.email', 'user.name'];
     const queryBuilder = this.createQueryBuilder('user')
+      .leftJoin('user.roles', 'role')
+      .where('role.id = :roleId', { roleId })
       .select([
         'user.id',
         'user.email',
-        'user.roleId',
-        'user.username',
         'user.name',
         'user.avatar',
+        'user.phone_number',
+        'user.date_of_birth',
+        'user.gender',
         'user.createdAt',
         'user.updatedAt',
         'user.deletedAt',
-      ])
-      .andWhere('user.roleId = :roleId', { roleId: roleId })
-      .leftJoinAndSelect('user.role', 'role');
+      ]);
 
     if (filterOptions.keywords) {
       queryBuilder.andWhere(
@@ -112,5 +128,39 @@ export class UserRepository extends Repository<UserEntity> {
       plainToInstance(UserResDto, users, { excludeExtraneousValues: true }),
       meta,
     );
+  }
+
+  async getPermissionsOfUser(userId: Uuid) {
+    const user: UserEntity = await this.createQueryBuilder('user')
+      .leftJoin('user.roles', 'role')
+      .leftJoin('role.permissions', 'permission')
+      .where('user.id = :userId', { userId })
+      .groupBy('user.id')
+      .select([
+        'user.id as id',
+        'user.email as email',
+        'user.phone_number as phone_number',
+        'user.name as name',
+        'user.avatar as avatar',
+        'user.date_of_birth as date_of_birth',
+        'user.gender as gender',
+        'user.created_at as created_at',
+        'user.updated_at as updated_at',
+        'user.deleted_at as deleted_at',
+        `json_agg(DISTINCT jsonb_build_object(
+          'id', permission.id,
+          'name', permission.name,
+          'resource', permission.resource,
+          'action', permission.action
+        )) as permissions`,
+        `json_agg(DISTINCT jsonb_build_object(
+          'id', role.id,
+          'name', role.name,
+          'description', role.description
+        )) as roles`,
+      ])
+      .getRawOne();
+
+    return user;
   }
 }

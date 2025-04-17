@@ -1,16 +1,12 @@
 import { NumberField, StringField } from '@common/decorators/field.decorators';
-import { Expose } from 'class-transformer';
 
 export class RefreshResDto {
-  @Expose({ name: 'access_token' })
-  @StringField()
+  @StringField({ name: 'access_token' })
   accessToken!: string;
 
-  @Expose({ name: 'refresh_token' })
-  @StringField()
+  @StringField({ name: 'refresh_token' })
   refreshToken!: string;
 
-  @Expose({ name: 'token_expires' })
-  @NumberField()
+  @NumberField({ name: 'token_expires' })
   tokenExpires!: number;
 }

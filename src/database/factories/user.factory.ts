@@ -7,7 +7,6 @@ export default setSeederFactory(UserEntity, (fake) => {
   const firstName = fake.person.firstName();
   const lastName = fake.person.lastName();
   user.email = fake.internet.email({ firstName, lastName });
-  user.username = user.email.split('@')[0];
   user.name = `${firstName} ${lastName}`;
   user.password = 'nestboilerplate@2025';
   user.isActive = true;

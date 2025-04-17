@@ -1,11 +1,12 @@
-import { TOKEN_TYPE } from '@common/constants/token-type.enum';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiAuth, ApiPublic } from '@common/decorators/http.decorators';
 import { ICurrentUser } from '@common/interfaces';
-import { AuthConfirmEmailDto } from '@modules/auth/dto/request/auth-confirm-email.dto';
-import { AuthResetPasswordDto } from '@modules/auth/dto/request/auth-reset-password.dto';
-import { EmailDto } from '@modules/auth/dto/request/email.dto';
+import { ConfirmEmailReqDto } from '@modules/auth/dto/request/confirm-email.req.dto';
+import { EmailReqDto } from '@modules/auth/dto/request/email.req.dto';
 import { LoginWithGoogleReqDto } from '@modules/auth/dto/request/login-with-google.req.dto';
+import { ResetPasswordReqDto } from '@modules/auth/dto/request/reset-password.req.dto';
+import { VerifyPinCodeReqDto } from '@modules/auth/dto/request/verify-pin-code.req.dto';
+import { TokenDto } from '@modules/auth/dto/token.dto';
 import {
   Body,
   Controller,
@@ -78,45 +79,49 @@ export class AuthController {
   }
 
   @ApiPublic({
-    summary: 'Email verification to activate account',
+    summary: 'Verify activation token',
     statusCode: HttpStatus.NO_CONTENT,
   })
-  @Get('verify-email')
-  async verifyEmail(@Query() query: AuthConfirmEmailDto) {
-    return this.authService.verifyEmailToken(
-      query.token,
-      TOKEN_TYPE.ACTIVATION,
-    );
+  @Get('activation/verify-token')
+  async verifyEmail(@Query() query: ConfirmEmailReqDto) {
+    return this.authService.verifyActivationToken(query.token);
   }
 
   @ApiPublic({
-    summary: 'Resend verification email',
+    summary: 'Resend activation email',
     statusCode: HttpStatus.NO_CONTENT,
   })
-  @Post('resend-verify-email')
-  async resendVerifyEmail(@Body() dto: EmailDto) {
+  @Post('activation/resend-email')
+  async resendVerifyEmail(@Body() dto: EmailReqDto) {
     return this.authService.resendEmailActivation(dto);
   }
 
   @ApiPublic({
-    summary: 'Forgot password verification link',
-    statusCode: HttpStatus.NO_CONTENT,
+    summary: 'Forgot password',
+    statusCode: HttpStatus.OK,
+    type: TokenDto,
   })
   @Post('forgot-password')
-  async forgotPassword(@Body() dto: EmailDto) {
+  async forgotPassword(@Body() dto: EmailReqDto) {
     return this.authService.forgotPassword(dto);
   }
 
   @ApiPublic({
-    summary: 'Verify email reset password link',
+    summary: 'Verify token reset password',
     statusCode: HttpStatus.NO_CONTENT,
   })
-  @Get('verify-reset-password-link')
-  async verifyResetPassword(@Query() query: AuthConfirmEmailDto) {
-    return this.authService.verifyEmailToken(
-      query.token,
-      TOKEN_TYPE.FORGOT_PASSWORD,
-    );
+  @Get('reset-password/verify-token')
+  async verifyResetPasswordToken(@Query() query: TokenDto) {
+    return this.authService.verifyResetPasswordToken(query.token);
+  }
+
+  @ApiPublic({
+    summary: 'Verify pin code reset password',
+    statusCode: HttpStatus.NO_CONTENT,
+  })
+  @Post('reset-password/verify-pincode')
+  verifyResetPasswordPinCode(@Body() body: VerifyPinCodeReqDto) {
+    return this.authService.verifyPinCodeResetPassword(body);
   }
 
   @ApiPublic({
@@ -124,7 +129,7 @@ export class AuthController {
     statusCode: HttpStatus.NO_CONTENT,
   })
   @Post('reset-password')
-  resetPassword(@Body() dto: AuthResetPasswordDto) {
+  resetPassword(@Body() dto: ResetPasswordReqDto) {
     return this.authService.resetPassword(dto);
   }
 
