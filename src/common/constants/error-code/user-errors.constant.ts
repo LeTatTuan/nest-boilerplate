@@ -1,4 +1,4 @@
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code/index';
 
 export const UserErrorCode: Record<string, string> = {
   [ErrorCode.USERNAME_OR_EMAIL_EXISTS]: 'user.error.username_or_email_exists',

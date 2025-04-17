@@ -1,6 +1,6 @@
 import { GOOGLE_URL } from '@common/constants/app.constant';
 import { ROLE } from '@common/constants/entity.enum';
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code';
 import { TOKEN_TYPE } from '@common/constants/token-type.enum';
 import { CommonFunction } from '@common/helpers/common.function';
 import { Uuid } from '@common/types/common.type';

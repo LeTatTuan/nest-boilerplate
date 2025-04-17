@@ -1,5 +1,5 @@
 import { ROLE } from '@common/constants/entity.enum';
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code';
 import { ROLES_KEY } from '@common/decorators/role.decorator';
 import {
   CanActivate,

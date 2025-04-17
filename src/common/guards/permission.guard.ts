@@ -1,6 +1,6 @@
 import { IS_PUBLIC } from '@common/constants/app.constant';
 import { ROLE } from '@common/constants/entity.enum';
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code';
 import { CHECK_PERMISSION_KEY } from '@common/decorators/permission.decorator';
 import { EventService } from '@common/events/event.service';
 import { PermissionHandlerInterface } from '@common/interfaces/permission-handler.interface';

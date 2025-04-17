@@ -1,6 +1,6 @@
 import { CacheKey } from '@common/constants/cache.constant';
 import { ROLE } from '@common/constants/entity.enum';
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code';
 import { PageOptionsDto } from '@common/dto/offset-pagination/page-options.dto';
 import { EventService } from '@common/events/event.service';
 import { CommonFunction } from '@common/helpers/common.function';
@@ -140,7 +140,7 @@ export class UserService {
       throw new BadRequestException(ErrorCode.REQUEST_DELETE_ACCOUNT_INVALID);
     }
     const user = await this.findByUserId(userId);
-    const code = await CommonFunction.generateCode(6);
+    const code = CommonFunction.generatePinCode(6);
     await this.cacheService.set(
       CreateCacheKey(CacheKey.REQUEST_DELETE, userId),
       code,

@@ -1,5 +1,5 @@
 import { IS_AUTH_OPTIONAL, IS_PUBLIC } from '@common/constants/app.constant';
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code';
 import { JwtUtil } from '@common/utils/jwt.util';
 import {
   CanActivate,

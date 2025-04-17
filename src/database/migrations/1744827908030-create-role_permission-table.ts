@@ -1,9 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateRolePermissionTable1742101589767
+export class CreateRolePermissionTable1744827908030
   implements MigrationInterface
 {
-  name = 'CreateRolePermissionTable1742101589767';
+  name = 'CreateRolePermissionTable1744827908030';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

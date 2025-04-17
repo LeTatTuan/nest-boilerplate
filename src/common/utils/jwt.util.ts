@@ -1,4 +1,4 @@
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code';
 import { AllConfigType } from '@config/config.type';
 import { JwtPayloadType } from '@modules/auth/types/jwt-payload.type';
 import { JwtRefreshPayloadType } from '@modules/auth/types/jwt-refresh-payload.type';

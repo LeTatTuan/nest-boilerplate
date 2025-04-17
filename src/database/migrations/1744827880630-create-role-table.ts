@@ -1,34 +1,34 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateSessionTable1742101618146 implements MigrationInterface {
-  name = 'CreateSessionTable1742101618146';
+export class CreateRoleTable1744827880630 implements MigrationInterface {
+  name = 'CreateRoleTable1744827880630';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE "session" (
+      CREATE TABLE "role" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "hash" character varying(255) NOT NULL,
-        "user_id" uuid NOT NULL,
+        "name" character varying NOT NULL,
+        "description" character varying DEFAULT null,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "deleted_at" TIMESTAMP WITH TIME ZONE DEFAULT null,
-        CONSTRAINT "PK_session_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_role_id" PRIMARY KEY ("id")
       )
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "session"
-      ADD CONSTRAINT "FK_session_user" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+      CREATE UNIQUE INDEX "UQ_role_name" ON "role"("name")
+      WHERE "deleted_at" IS NULL
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      ALTER TABLE "session" DROP CONSTRAINT "FK_session_user"
+      DROP INDEX "UQ_role_name"
     `);
 
     await queryRunner.query(`
-      DROP TABLE "session"
+      DROP TABLE "role"
     `);
   }
 }

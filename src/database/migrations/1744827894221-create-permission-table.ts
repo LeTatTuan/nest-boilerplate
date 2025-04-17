@@ -1,34 +1,27 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateRoleTable1742101495900 implements MigrationInterface {
-  name = 'CreateRoleTable1742101495900';
+export class CreatePermissionTable1744827894221 implements MigrationInterface {
+  name = 'CreatePermissionTable1744827894221';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE "role" (
+      CREATE TABLE "permission" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "name" character varying NOT NULL,
+        "resource" character varying NOT NULL,
+        "action" character varying NOT NULL,
+        "name" character varying DEFAULT null,
         "description" character varying DEFAULT null,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "deleted_at" TIMESTAMP WITH TIME ZONE DEFAULT null,
-        CONSTRAINT "PK_role_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_permission_id" PRIMARY KEY ("id")
       )
-    `);
-
-    await queryRunner.query(`
-      CREATE UNIQUE INDEX "UQ_role_name" ON "role"("name")
-      WHERE "deleted_at" IS NULL
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      DROP INDEX "UQ_role_name"
-    `);
-
-    await queryRunner.query(`
-      DROP TABLE "role"
+      DROP TABLE "permission"
     `);
   }
 }

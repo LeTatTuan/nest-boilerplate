@@ -2,10 +2,9 @@ import { randomStringGenerator } from '@nestjs/common/utils/random-string-genera
 import crypto from 'crypto';
 
 export class CommonFunction {
-  static async generateCode(lengthCode: number) {
+  static generatePinCode(lengthCode: number) {
     let result = '';
-    const characters =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const characters = '0123456789';
     const charactersLength = characters.length;
     let counter = 0;
     while (counter < lengthCode) {

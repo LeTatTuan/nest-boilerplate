@@ -1,4 +1,4 @@
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code/index';
 
 export const PermissionErrorCode: Record<string, string> = {
   [ErrorCode.PERMISSION_INVALID]: 'permission.error.permission_invalid',

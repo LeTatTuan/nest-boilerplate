@@ -1,6 +1,6 @@
-import { constraintErrors } from '@common/constants/error-code/constraint-errors';
+import { ErrorCode } from '@common/constants/error-code';
+import { constraintErrorsConstant } from '@common/constants/error-code/constraint-errors.constant';
 import { ErrorCodeDetails } from '@common/constants/error-code/error-code-detail.constant';
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
 import { ErrorDto } from '@common/dto/error.dto';
 import { ValidationException } from '@common/exceptions/validation.exception';
 import { I18nTranslations } from '@generated/i18n.generated';
@@ -81,7 +81,7 @@ export class WebsocketExceptionFilter extends BaseWsExceptionFilter {
           status: HttpStatus.CONFLICT,
           message: r.constraint
             ? this.i18n.t(
-                (constraintErrors[r.constraint] ||
+                (constraintErrorsConstant[r.constraint] ||
                   r.constraint) as keyof I18nTranslations,
               )
             : undefined,

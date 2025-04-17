@@ -1,5 +1,5 @@
 import { ActionList, ResourceList } from '@common/constants/app.constant';
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
+import { ErrorCode } from '@common/constants/error-code';
 import { OffsetPaginationDto } from '@common/dto/offset-pagination/offset-pagination.dto';
 import { PageOptionsDto } from '@common/dto/offset-pagination/page-options.dto';
 import { OffsetPaginatedDto } from '@common/dto/offset-pagination/paginated.dto';

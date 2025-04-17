@@ -1,6 +1,6 @@
-import { constraintErrors } from '@common/constants/error-code/constraint-errors';
+import { ErrorCode } from '@common/constants/error-code';
+import { constraintErrorsConstant } from '@common/constants/error-code/constraint-errors.constant';
 import { ErrorCodeDetails } from '@common/constants/error-code/error-code-detail.constant';
-import { ErrorCode } from '@common/constants/error-code/error-code.constant';
 import { ErrorDetailDto } from '@common/dto/error-detail.dto';
 import { ErrorDto } from '@common/dto/error.dto';
 import { ResponseDataApi } from '@common/dto/general/response-data-api.dto';
@@ -157,7 +157,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           status: HttpStatus.CONFLICT,
           message: r.constraint
             ? this.i18n.t(
-                (constraintErrors[r.constraint] ||
+                (constraintErrorsConstant[r.constraint] ||
                   r.constraint) as keyof I18nTranslations,
               )
             : undefined,
